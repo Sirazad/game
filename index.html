@@ -230,6 +230,8 @@
     const TILE_COUNT = 12;
     const PAIR_COUNT = TILE_COUNT / 2;
     const BEST_PREFIX = 'sumemory-best-time-';
+    const MAX_BOARD_GENERATION_ATTEMPTS = 1000;
+    const MAX_PAIR_GENERATION_ATTEMPTS = 200;
 
     const mainScreen = document.getElementById('mainScreen');
     const gameScreen = document.getElementById('gameScreen');
@@ -299,14 +301,13 @@
     }
 
     function buildPairs(maxValue) {
-      const maxAttempts = 1000;
-      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      for (let attempt = 0; attempt < MAX_BOARD_GENERATION_ATTEMPTS; attempt++) {
         const pairs = [];
         const usedSums = new Set();
         for (let i = 0; i < PAIR_COUNT; i++) {
           let pairAttempt = 0;
           let created = false;
-          while (pairAttempt < 200 && !created) {
+          while (pairAttempt < MAX_PAIR_GENERATION_ATTEMPTS && !created) {
             pairAttempt++;
             const a = randomInt(1, maxValue);
             const b = randomInt(1, maxValue);
@@ -345,7 +346,11 @@
 
     function generateBoard(maxValue) {
       const fallbackPairs = () => {
-        const sums = shuffle(Array.from({ length: (maxValue * 2) - 1 }, (_, i) => i + 2)).slice(0, PAIR_COUNT);
+        const selectedSums = new Set();
+        while (selectedSums.size < PAIR_COUNT) {
+          selectedSums.add(randomInt(2, maxValue * 2));
+        }
+        const sums = [...selectedSums];
         return sums.map((sum, i) => {
           const minA = Math.max(1, sum - maxValue);
           const maxA = Math.min(maxValue, sum - 1);
@@ -373,7 +378,7 @@
         tileEl.className = 'tile';
         tileEl.type = 'button';
         tileEl.dataset.index = String(index);
-        tileEl.setAttribute('aria-label', `Tile ${index + 1}: ${tile.value}`);
+        tileEl.setAttribute('aria-label', `Tile ${index + 1}`);
         tileEl.innerHTML = `
           <span class="tile-face front" aria-hidden="true"></span>
           <span class="tile-face back">${tile.value}</span>
