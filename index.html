@@ -230,6 +230,7 @@
     const TILE_COUNT = 12;
     const PAIR_COUNT = TILE_COUNT / 2;
     const BEST_PREFIX = 'sumemory-best-time-';
+    const MIN_DIFFICULTY = 50;
 
     const mainScreen = document.getElementById('mainScreen');
     const gameScreen = document.getElementById('gameScreen');
@@ -302,13 +303,17 @@
     function generateBoard(maxValue) {
       const selectedSums = new Set();
       while (selectedSums.size < PAIR_COUNT) {
-        selectedSums.add(randomInt(2, maxValue * 2));
+        selectedSums.add(randomInt(3, maxValue * 2));
       }
       const pairs = [...selectedSums].map((sum, i) => {
         const minA = Math.max(1, sum - maxValue);
         const maxA = Math.min(maxValue, sum - 1);
-        const a = randomInt(minA, maxA);
-        const b = sum - a;
+        let a = randomInt(minA, maxA);
+        let b = sum - a;
+        while (a === b && maxA > minA) {
+          a = randomInt(minA, maxA);
+          b = sum - a;
+        }
         return { id: `pair-${i}`, a, b, sum };
       });
 
@@ -436,7 +441,7 @@
 
     function startGame() {
       const parsedDifficulty = Number(difficultyInput.value);
-      currentDifficulty = Number.isFinite(parsedDifficulty) ? Math.max(50, Math.floor(parsedDifficulty)) : 50;
+      currentDifficulty = Number.isFinite(parsedDifficulty) ? Math.max(MIN_DIFFICULTY, Math.floor(parsedDifficulty)) : MIN_DIFFICULTY;
       difficultyInput.value = String(currentDifficulty);
       updateBestTimeDisplay();
 
@@ -463,11 +468,12 @@
     abandonBtn.addEventListener('click', abandonGame);
     difficultyInput.addEventListener('change', () => {
       const v = Number(difficultyInput.value);
-      currentDifficulty = Number.isFinite(v) ? Math.max(50, Math.floor(v)) : 50;
+      currentDifficulty = Number.isFinite(v) ? Math.max(MIN_DIFFICULTY, Math.floor(v)) : MIN_DIFFICULTY;
       difficultyInput.value = String(currentDifficulty);
       updateBestTimeDisplay();
     });
 
+    difficultyInput.min = String(MIN_DIFFICULTY);
     updateBestTimeDisplay();
   </script>
 </body>
