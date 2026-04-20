@@ -200,9 +200,10 @@
           <strong id="bestTimeDisplay">--:--</strong>
         </div>
         <div class="panel row">
-          <label for="difficulty">Maximum number (min 50)</label>
-          <input id="difficulty" type="number" min="50" value="100" step="1" />
+          <label for="difficulty">Maximum number</label>
+          <input id="difficulty" type="number" min="50" value="100" step="1" aria-describedby="difficultyHint" />
         </div>
+        <div id="difficultyHint" class="panel">Minimum allowed value: 50</div>
         <button id="startBtn" class="primary">Start</button>
       </div>
     </section>
@@ -343,11 +344,18 @@
     }
 
     function generateBoard(maxValue) {
-      const pairs = buildPairs(maxValue) || Array.from({ length: PAIR_COUNT }, (_, i) => {
-        const a = randomInt(1, maxValue);
-        const b = randomInt(1, maxValue);
-        return { id: `pair-${i}`, a, b, sum: a + b };
-      });
+      const fallbackPairs = () => {
+        const sums = shuffle(Array.from({ length: (maxValue * 2) - 1 }, (_, i) => i + 2)).slice(0, PAIR_COUNT);
+        return sums.map((sum, i) => {
+          const minA = Math.max(1, sum - maxValue);
+          const maxA = Math.min(maxValue, sum - 1);
+          const a = randomInt(minA, maxA);
+          const b = sum - a;
+          return { id: `pair-${i}`, a, b, sum };
+        });
+      };
+
+      const pairs = buildPairs(maxValue) || fallbackPairs();
 
       const tiles = pairs.flatMap((pair) => [
         { pairId: pair.id, value: pair.a, sum: pair.sum },
@@ -365,6 +373,7 @@
         tileEl.className = 'tile';
         tileEl.type = 'button';
         tileEl.dataset.index = String(index);
+        tileEl.setAttribute('aria-label', `Tile ${index + 1}: ${tile.value}`);
         tileEl.innerHTML = `
           <span class="tile-face front" aria-hidden="true"></span>
           <span class="tile-face back">${tile.value}</span>
