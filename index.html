@@ -230,8 +230,6 @@
     const TILE_COUNT = 12;
     const PAIR_COUNT = TILE_COUNT / 2;
     const BEST_PREFIX = 'sumemory-best-time-';
-    const MAX_BOARD_GENERATION_ATTEMPTS = 1000;
-    const MAX_PAIR_GENERATION_ATTEMPTS = 200;
 
     const mainScreen = document.getElementById('mainScreen');
     const gameScreen = document.getElementById('gameScreen');
@@ -288,6 +286,7 @@
     }
 
     function randomInt(min, max) {
+      if (min > max) [min, max] = [max, min];
       return Math.floor(Math.random() * (max - min + 1)) + min;
     }
 
@@ -300,67 +299,18 @@
       return arr;
     }
 
-    function buildPairs(maxValue) {
-      for (let attempt = 0; attempt < MAX_BOARD_GENERATION_ATTEMPTS; attempt++) {
-        const pairs = [];
-        const usedSums = new Set();
-        for (let i = 0; i < PAIR_COUNT; i++) {
-          let pairAttempt = 0;
-          let created = false;
-          while (pairAttempt < MAX_PAIR_GENERATION_ATTEMPTS && !created) {
-            pairAttempt++;
-            const a = randomInt(1, maxValue);
-            const b = randomInt(1, maxValue);
-            const sum = a + b;
-            if (usedSums.has(sum)) continue;
-            usedSums.add(sum);
-            pairs.push({ id: `pair-${i}`, a, b, sum });
-            created = true;
-          }
-          if (!created) break;
-        }
-        if (pairs.length !== PAIR_COUNT) continue;
-
-        const allNumbers = pairs.flatMap((pair) => [
-          { pairId: pair.id, value: pair.a, sum: pair.sum },
-          { pairId: pair.id, value: pair.b, sum: pair.sum }
-        ]);
-
-        let valid = true;
-        for (const p of pairs) {
-          let combinations = 0;
-          for (let i = 0; i < allNumbers.length; i++) {
-            for (let j = i + 1; j < allNumbers.length; j++) {
-              if (allNumbers[i].value + allNumbers[j].value === p.sum) combinations++;
-            }
-          }
-          if (combinations !== 1) {
-            valid = false;
-            break;
-          }
-        }
-        if (valid) return pairs;
-      }
-      return null;
-    }
-
     function generateBoard(maxValue) {
-      const fallbackPairs = () => {
-        const selectedSums = new Set();
-        while (selectedSums.size < PAIR_COUNT) {
-          selectedSums.add(randomInt(2, maxValue * 2));
-        }
-        const sums = [...selectedSums];
-        return sums.map((sum, i) => {
-          const minA = Math.max(1, sum - maxValue);
-          const maxA = Math.min(maxValue, sum - 1);
-          const a = randomInt(minA, maxA);
-          const b = sum - a;
-          return { id: `pair-${i}`, a, b, sum };
-        });
-      };
-
-      const pairs = buildPairs(maxValue) || fallbackPairs();
+      const selectedSums = new Set();
+      while (selectedSums.size < PAIR_COUNT) {
+        selectedSums.add(randomInt(2, maxValue * 2));
+      }
+      const pairs = [...selectedSums].map((sum, i) => {
+        const minA = Math.max(1, sum - maxValue);
+        const maxA = Math.min(maxValue, sum - 1);
+        const a = randomInt(minA, maxA);
+        const b = sum - a;
+        return { id: `pair-${i}`, a, b, sum };
+      });
 
       const tiles = pairs.flatMap((pair) => [
         { pairId: pair.id, value: pair.a, sum: pair.sum },
