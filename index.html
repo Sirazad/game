@@ -1,0 +1,480 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SUMemory</title>
+  <style>
+    :root {
+      --bg: #fff7e6;
+      --panel: #ffffff;
+      --sun: #ffd166;
+      --sun-dark: #f4b400;
+      --accent: #ff8c42;
+      --text: #263238;
+      --ok: #2a9d8f;
+      --bad: #e63946;
+      --shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: radial-gradient(circle at top, #fff2b2 0%, var(--bg) 50%, #ffe9d6 100%);
+      color: var(--text);
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+    }
+
+    .app {
+      width: min(900px, 100%);
+      background: var(--panel);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      padding: clamp(16px, 3vw, 24px);
+    }
+
+    h1 {
+      text-align: center;
+      margin-top: 4px;
+      margin-bottom: 12px;
+      font-size: clamp(2rem, 5vw, 2.8rem);
+      letter-spacing: 0.04em;
+    }
+
+    .screen { display: none; }
+    .screen.active { display: block; }
+
+    .main-controls {
+      display: grid;
+      gap: 12px;
+      max-width: 420px;
+      margin: 0 auto;
+    }
+
+    .panel {
+      background: #fff8ef;
+      border: 1px solid #ffe2ba;
+      border-radius: 12px;
+      padding: 12px 14px;
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    label { font-weight: 600; }
+
+    input[type="number"] {
+      width: 130px;
+      border: 1px solid #e7c89a;
+      border-radius: 8px;
+      padding: 8px;
+      font-size: 1rem;
+    }
+
+    button {
+      border: none;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.15s ease, filter 0.15s ease;
+    }
+
+    button:hover { filter: brightness(1.05); }
+    button:active { transform: translateY(1px) scale(0.99); }
+
+    .primary { background: var(--accent); color: #fff; }
+    .secondary { background: #e8f0fe; color: #1e3a8a; }
+    .danger { background: #ffe6e6; color: #9f1239; }
+
+    .game-top {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(100px, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .stat {
+      background: #fff8ef;
+      border: 1px solid #ffe2ba;
+      border-radius: 10px;
+      padding: 10px;
+      text-align: center;
+      font-weight: 700;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 10px;
+      margin-bottom: 14px;
+    }
+
+    .tile {
+      position: relative;
+      aspect-ratio: 1 / 1;
+      transform-style: preserve-3d;
+      transition: transform 0.45s ease, opacity 0.35s ease, scale 0.25s ease;
+      cursor: pointer;
+      border-radius: 14px;
+    }
+
+    .tile.flipped { transform: rotateY(180deg); }
+    .tile.matched {
+      opacity: 0;
+      scale: 0.8;
+      pointer-events: none;
+    }
+
+    .tile-face {
+      position: absolute;
+      inset: 0;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      backface-visibility: hidden;
+      box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+      user-select: none;
+      font-weight: 800;
+    }
+
+    .front {
+      background: linear-gradient(145deg, #ffe38f, var(--sun));
+      color: #7a4a00;
+      font-size: clamp(1.4rem, 4vw, 2rem);
+    }
+
+    .front::before {
+      content: "☀";
+      filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.12));
+    }
+
+    .back {
+      transform: rotateY(180deg);
+      background: #fff;
+      color: #1f2937;
+      font-size: clamp(1.2rem, 4vw, 1.8rem);
+      border: 2px solid #f0d3aa;
+    }
+
+    .game-controls {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .feedback {
+      min-height: 24px;
+      text-align: center;
+      font-weight: 700;
+    }
+
+    .feedback.ok { color: var(--ok); }
+    .feedback.bad { color: var(--bad); }
+
+    @media (max-width: 620px) {
+      .game-top { grid-template-columns: 1fr; }
+      .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section id="mainScreen" class="screen active">
+      <h1>SUMemory</h1>
+      <div class="main-controls">
+        <div class="panel row">
+          <span>Best Time</span>
+          <strong id="bestTimeDisplay">--:--</strong>
+        </div>
+        <div class="panel row">
+          <label for="difficulty">Maximum number</label>
+          <input id="difficulty" type="number" min="50" value="100" step="1" aria-describedby="difficultyHint" />
+        </div>
+        <div id="difficultyHint" class="panel">Minimum allowed value: 50</div>
+        <button id="startBtn" class="primary">Start</button>
+      </div>
+    </section>
+
+    <section id="gameScreen" class="screen">
+      <h1>SUMemory</h1>
+      <div class="game-top">
+        <div class="stat">Time: <span id="timer">00:00</span></div>
+        <div class="stat">Find sum: <span id="targetSum">0</span></div>
+        <div class="stat">Pairs left: <span id="pairsLeft">6</span></div>
+      </div>
+
+      <div id="feedback" class="feedback" aria-live="polite"></div>
+      <div id="grid" class="grid" aria-label="SUMemory board"></div>
+
+      <div class="game-controls">
+        <button id="restartBtn" class="secondary">Restart</button>
+        <button id="abandonBtn" class="danger">Abandon</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const TILE_COUNT = 12;
+    const PAIR_COUNT = TILE_COUNT / 2;
+    const BEST_PREFIX = 'sumemory-best-time-';
+    const MIN_DIFFICULTY = 50;
+
+    const mainScreen = document.getElementById('mainScreen');
+    const gameScreen = document.getElementById('gameScreen');
+    const difficultyInput = document.getElementById('difficulty');
+    const bestTimeDisplay = document.getElementById('bestTimeDisplay');
+    const startBtn = document.getElementById('startBtn');
+    const restartBtn = document.getElementById('restartBtn');
+    const abandonBtn = document.getElementById('abandonBtn');
+    const timerEl = document.getElementById('timer');
+    const targetSumEl = document.getElementById('targetSum');
+    const pairsLeftEl = document.getElementById('pairsLeft');
+    const grid = document.getElementById('grid');
+    const feedback = document.getElementById('feedback');
+
+    let numbers = [];
+    let pairMap = new Map();
+    let openTiles = [];
+    let matchedPairs = new Set();
+    let currentTargetPair = null;
+    let gameLocked = false;
+    let startTime = 0;
+    let timerId = null;
+    let currentDifficulty = 100;
+
+    function formatTime(totalSeconds) {
+      const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
+      const seconds = String(totalSeconds % 60).padStart(2, '0');
+      return `${minutes}:${seconds}`;
+    }
+
+    function keyForDifficulty(maxValue) {
+      return `${BEST_PREFIX}${maxValue}`;
+    }
+
+    function getBestTime(maxValue) {
+      const raw = localStorage.getItem(keyForDifficulty(maxValue));
+      const num = raw ? Number(raw) : NaN;
+      return Number.isFinite(num) && num > 0 ? num : null;
+    }
+
+    function setBestTime(maxValue, seconds) {
+      localStorage.setItem(keyForDifficulty(maxValue), String(seconds));
+    }
+
+    function updateBestTimeDisplay() {
+      const best = getBestTime(currentDifficulty);
+      bestTimeDisplay.textContent = best ? formatTime(best) : '--:--';
+    }
+
+    function showScreen(screen) {
+      mainScreen.classList.remove('active');
+      gameScreen.classList.remove('active');
+      screen.classList.add('active');
+    }
+
+    function randomInt(min, max) {
+      if (min > max) [min, max] = [max, min];
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function shuffle(list) {
+      const arr = [...list];
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    function generateBoard(maxValue) {
+      const selectedSums = new Set();
+      while (selectedSums.size < PAIR_COUNT) {
+        selectedSums.add(randomInt(3, maxValue * 2));
+      }
+      const pairs = [...selectedSums].map((sum, i) => {
+        const minA = Math.max(1, sum - maxValue);
+        const maxA = Math.min(maxValue, sum - 1);
+        let a = randomInt(minA, maxA);
+        let b = sum - a;
+        while (a === b && maxA > minA) {
+          a = randomInt(minA, maxA);
+          b = sum - a;
+        }
+        return { id: `pair-${i}`, a, b, sum };
+      });
+
+      const tiles = pairs.flatMap((pair) => [
+        { pairId: pair.id, value: pair.a, sum: pair.sum },
+        { pairId: pair.id, value: pair.b, sum: pair.sum }
+      ]);
+
+      numbers = shuffle(tiles);
+      pairMap = new Map(pairs.map((pair) => [pair.id, pair]));
+    }
+
+    function renderBoard() {
+      grid.innerHTML = '';
+      numbers.forEach((tile, index) => {
+        const tileEl = document.createElement('button');
+        tileEl.className = 'tile';
+        tileEl.type = 'button';
+        tileEl.dataset.index = String(index);
+        tileEl.setAttribute('aria-label', `Tile ${index + 1}`);
+        tileEl.innerHTML = `
+          <span class="tile-face front" aria-hidden="true"></span>
+          <span class="tile-face back">${tile.value}</span>
+        `;
+        tileEl.addEventListener('click', () => onTileClick(index));
+        grid.appendChild(tileEl);
+      });
+    }
+
+    function updateTimer() {
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      timerEl.textContent = formatTime(elapsed);
+    }
+
+    function startTimer() {
+      startTime = Date.now();
+      timerEl.textContent = '00:00';
+      if (timerId) clearInterval(timerId);
+      timerId = setInterval(updateTimer, 1000);
+    }
+
+    function stopTimer() {
+      if (timerId) clearInterval(timerId);
+      timerId = null;
+      return Math.floor((Date.now() - startTime) / 1000);
+    }
+
+    function setFeedback(message, type = '') {
+      feedback.textContent = message;
+      feedback.classList.remove('ok', 'bad');
+      if (type) feedback.classList.add(type);
+    }
+
+    function nextTargetPair() {
+      const remaining = [...pairMap.values()].filter((p) => !matchedPairs.has(p.id));
+      if (!remaining.length) {
+        currentTargetPair = null;
+        targetSumEl.textContent = '0';
+        return;
+      }
+      currentTargetPair = remaining[Math.floor(Math.random() * remaining.length)];
+      targetSumEl.textContent = String(currentTargetPair.sum);
+      pairsLeftEl.textContent = String(remaining.length);
+      setFeedback('');
+    }
+
+    function resetOpenTiles() {
+      openTiles = [];
+    }
+
+    function onTileClick(index) {
+      if (gameLocked) return;
+      const tileEl = grid.children[index];
+      if (!tileEl || tileEl.classList.contains('flipped') || tileEl.classList.contains('matched')) return;
+
+      tileEl.classList.add('flipped');
+      openTiles.push({ index, tile: numbers[index], el: tileEl });
+
+      if (openTiles.length < 2) return;
+
+      gameLocked = true;
+      const [first, second] = openTiles;
+      const selectedSum = first.tile.value + second.tile.value;
+      const isCorrect = Boolean(currentTargetPair) &&
+        selectedSum === currentTargetPair.sum &&
+        first.tile.pairId === second.tile.pairId &&
+        first.tile.pairId === currentTargetPair.id;
+
+      if (isCorrect) {
+        setFeedback('Great! Correct sum.', 'ok');
+        setTimeout(() => {
+          first.el.classList.add('matched');
+          second.el.classList.add('matched');
+          matchedPairs.add(currentTargetPair.id);
+          resetOpenTiles();
+
+          if (matchedPairs.size === PAIR_COUNT) {
+            const elapsed = stopTimer();
+            const previousBest = getBestTime(currentDifficulty);
+            if (!previousBest || elapsed < previousBest) {
+              setBestTime(currentDifficulty, elapsed);
+              setFeedback(`You won in ${formatTime(elapsed)}. New best time!`, 'ok');
+            } else {
+              setFeedback(`You won in ${formatTime(elapsed)}.`, 'ok');
+            }
+            updateBestTimeDisplay();
+            targetSumEl.textContent = 'Done!';
+            pairsLeftEl.textContent = '0';
+          } else {
+            nextTargetPair();
+          }
+
+          gameLocked = false;
+        }, 300);
+      } else {
+        setFeedback('Not that sum. Try again!', 'bad');
+        setTimeout(() => {
+          first.el.classList.remove('flipped');
+          second.el.classList.remove('flipped');
+          resetOpenTiles();
+          gameLocked = false;
+        }, 650);
+      }
+    }
+
+    function startGame() {
+      const parsedDifficulty = Number(difficultyInput.value);
+      currentDifficulty = Number.isFinite(parsedDifficulty) ? Math.max(MIN_DIFFICULTY, Math.floor(parsedDifficulty)) : MIN_DIFFICULTY;
+      difficultyInput.value = String(currentDifficulty);
+      updateBestTimeDisplay();
+
+      matchedPairs.clear();
+      resetOpenTiles();
+      gameLocked = false;
+      setFeedback('');
+
+      generateBoard(currentDifficulty);
+      renderBoard();
+      nextTargetPair();
+      startTimer();
+      showScreen(gameScreen);
+    }
+
+    function abandonGame() {
+      if (timerId) stopTimer();
+      showScreen(mainScreen);
+      updateBestTimeDisplay();
+    }
+
+    startBtn.addEventListener('click', startGame);
+    restartBtn.addEventListener('click', startGame);
+    abandonBtn.addEventListener('click', abandonGame);
+    difficultyInput.addEventListener('change', () => {
+      const v = Number(difficultyInput.value);
+      currentDifficulty = Number.isFinite(v) ? Math.max(MIN_DIFFICULTY, Math.floor(v)) : MIN_DIFFICULTY;
+      difficultyInput.value = String(currentDifficulty);
+      updateBestTimeDisplay();
+    });
+
+    difficultyInput.min = String(MIN_DIFFICULTY);
+    updateBestTimeDisplay();
+  </script>
+</body>
+</html>
